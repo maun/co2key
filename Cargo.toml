@@ -10,6 +10,8 @@ license = "MIT OR Apache-2.0"
 keywords = ["cli", "games", "input", "automation"]
 categories = ["command-line-utilities"]
 
+exclude = ["*.json"]
+
 [dependencies]
 gilrs = { version = "0.10.9", features = ["serde-serialize"] }
 rdev = { version = "0.5.3", features = ["serialize"] }
