@@ -1,7 +1,14 @@
+use clap::{command, value_parser, Arg, ArgAction};
 use gilrs::{Event, Gamepad, Gilrs};
 use rdev::{simulate, EventType, Key};
+use serde::Deserialize;
+use serde_json::from_reader;
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::BufReader;
+use std::path::PathBuf;
 
+#[derive(Deserialize)]
 struct AxisMapping {
     axis: gilrs::Axis,
     high_key: Key,
@@ -9,17 +16,20 @@ struct AxisMapping {
     threshold: f32,
 }
 
+#[derive(Deserialize)]
 struct ButtonMapping {
     button: gilrs::Button,
     key: Key,
 }
 
+#[derive(Deserialize)]
 struct ControllerMapping {
     controller_id: u32,
     axis_mappings: Vec<AxisMapping>,
     button_mappings: Vec<ButtonMapping>,
 }
 
+#[derive(Deserialize)]
 struct Config {
     controller_mappings: Vec<ControllerMapping>,
 }
@@ -80,102 +90,11 @@ impl Config {
     }
 }
 
-fn main() {
-    let config = Config {
-        controller_mappings: vec![
-            ControllerMapping {
-                controller_id: 0,
-                axis_mappings: vec![
-                    AxisMapping {
-                        threshold: 0.3,
-                        axis: gilrs::Axis::LeftStickX,
-                        high_key: Key::KeyD,
-                        low_key: Key::KeyA,
-                    },
-                    AxisMapping {
-                        threshold: 0.3,
-                        axis: gilrs::Axis::LeftStickY,
-                        high_key: Key::KeyW,
-                        low_key: Key::KeyS,
-                    },
-                ],
-                button_mappings: vec![
-                    ButtonMapping {
-                        button: gilrs::Button::South,
-                        key: Key::KeyE,
-                    },
-                    ButtonMapping {
-                        button: gilrs::Button::East,
-                        key: Key::KeyK,
-                    },
-                    ButtonMapping {
-                        button: gilrs::Button::West,
-                        key: Key::KeyJ,
-                    },
-                    ButtonMapping {
-                        button: gilrs::Button::RightTrigger,
-                        key: Key::KeyL,
-                    },
-                    ButtonMapping {
-                        button: gilrs::Button::LeftTrigger,
-                        key: Key::KeyH,
-                    },
-                ],
-            },
-            ControllerMapping {
-                controller_id: 1,
-                axis_mappings: vec![
-                    AxisMapping {
-                        threshold: 0.3,
-                        axis: gilrs::Axis::LeftStickX,
-                        high_key: Key::RightArrow,
-                        low_key: Key::LeftArrow,
-                    },
-                    AxisMapping {
-                        threshold: 0.3,
-                        axis: gilrs::Axis::LeftStickY,
-                        high_key: Key::KeyM,
-                        low_key: Key::DownArrow,
-                    },
-                ],
-                button_mappings: vec![
-                    ButtonMapping {
-                        button: gilrs::Button::South,
-                        key: Key::Space,
-                    },
-                    ButtonMapping {
-                        button: gilrs::Button::East,
-                        key: Key::KeyX,
-                    },
-                    ButtonMapping {
-                        button: gilrs::Button::West,
-                        key: Key::KeyC,
-                    },
-                    ButtonMapping {
-                        button: gilrs::Button::RightTrigger,
-                        key: Key::KeyV,
-                    },
-                    ButtonMapping {
-                        button: gilrs::Button::LeftTrigger,
-                        key: Key::KeyZ,
-                    },
-                ],
-            },
-        ],
-    };
-
-    let mut key_state = HashMap::<Key, bool>::new();
-    let mut gilrs = Gilrs::new().unwrap();
-
-    loop {
-        while let Some(Event { id, event, time }) = gilrs.next_event_blocking(None) {
-            println!("{:?} New event from {}: {:?}", time, id, event);
-
-            for (_id, gamepad) in gilrs.gamepads() {
-                config.apply_mapping(&mut key_state, &gamepad);
-            }
-        }
-    }
+fn read_config(path: &PathBuf) -> Result<Config, Box<dyn std::error::Error>> {
+    let file = File::open(path)?;
+    let reader = BufReader::new(file);
+    let config: Config = from_reader(reader)?;
+    Ok(config)
 }
 
 fn key_press_once(key_state: &mut HashMap<Key, bool>, key: Key) {
@@ -191,5 +110,48 @@ fn key_release_once(key_state: &mut HashMap<Key, bool>, key: Key) {
     if *is_down {
         let _ = simulate(&EventType::KeyRelease(key));
         *is_down = false
+    }
+}
+
+fn main() {
+    let matches = command!()
+        .arg(
+            Arg::new("config")
+                .required(true)
+                .value_parser(value_parser!(PathBuf)),
+        )
+        .arg(
+            Arg::new("verbose")
+                .short('v')
+                .long("verbose")
+                .action(ArgAction::SetTrue),
+        )
+        .get_matches();
+
+    let config_path = matches.get_one::<PathBuf>("config").unwrap();
+    let config = match read_config(config_path) {
+        Ok(config) => config,
+        Err(e) => {
+            println!("Could not parse config file. Error:\n\n");
+            println!("{e}");
+            return;
+        }
+    };
+
+    let verbose = matches.get_flag("verbose");
+
+    let mut key_state = HashMap::<Key, bool>::new();
+    let mut gilrs = Gilrs::new().unwrap();
+
+    loop {
+        while let Some(Event { id, event, time }) = gilrs.next_event_blocking(None) {
+            if verbose {
+                println!("{:?} New event from {}: {:?}", time, id, event);
+            }
+
+            for (_id, gamepad) in gilrs.gamepads() {
+                config.apply_mapping(&mut key_state, &gamepad);
+            }
+        }
     }
 }

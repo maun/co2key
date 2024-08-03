@@ -1,0 +1,52 @@
+{
+  "controller_mappings": [
+    {
+      "controller_id": 0,
+      "axis_mappings": [
+        {
+          "threshold": 0.3,
+          "axis": "LeftStickX",
+          "high_key": "KeyD",
+          "low_key": "KeyA"
+        },
+        {
+          "threshold": 0.3,
+          "axis": "LeftStickY",
+          "high_key": "KeyW",
+          "low_key": "KeyS"
+        }
+      ],
+      "button_mappings": [
+        { "button": "South", "key": "KeyE" },
+        { "button": "East", "key": "KeyK" },
+        { "button": "West", "key": "KeyJ" },
+        { "button": "RightTrigger", "key": "KeyL" },
+        { "button": "LeftTrigger", "key": "KeyH" }
+      ]
+    },
+    {
+      "controller_id": 1,
+      "axis_mappings": [
+        {
+          "threshold": 0.3,
+          "axis": "LeftStickX",
+          "high_key": "RightArrow",
+          "low_key": "LeftArrow"
+        },
+        {
+          "threshold": 0.3,
+          "axis": "LeftStickY",
+          "high_key": "UpArrow",
+          "low_key": "DownArrow"
+        }
+      ],
+      "button_mappings": [
+        { "button": "South", "key": "Space" },
+        { "button": "East", "key": "KeyX" },
+        { "button": "West", "key": "KeyC" },
+        { "button": "RightTrigger", "key": "KeyV" },
+        { "button": "LeftTrigger", "key": "KeyZ" }
+      ]
+    }
+  ]
+}
