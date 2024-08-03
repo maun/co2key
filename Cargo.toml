@@ -4,6 +4,11 @@ version = "0.2.0"
 edition = "2021"
 
 description = "CLI tool to map game controller input to simulated key presses"
+repository = "https://github.com/maun/co2key"
+readme = "README.md"
+license = "MIT OR Apache-2.0"
+keywords = ["cli", "games", "input", "automation"]
+categories = ["command-line-utilities"]
 
 [dependencies]
 gilrs = { version = "0.10.9", features = ["serde-serialize"] }
