@@ -1,7 +1,7 @@
 {
-  "controller_mappings": [
+  "controllers": [
     {
-      "axis_mappings": [
+      "axes": [
         {
           "threshold": 0.3,
           "axis": "LeftStickX",
@@ -15,7 +15,7 @@
           "low_key": "KeyS"
         }
       ],
-      "button_mappings": [
+      "buttons": [
         { "button": "South", "key": "KeyE" },
         { "button": "East", "key": "KeyK" },
         { "button": "West", "key": "KeyJ" },
@@ -24,7 +24,7 @@
       ]
     },
     {
-      "axis_mappings": [
+      "axes": [
         {
           "threshold": 0.3,
           "axis": "LeftStickX",
@@ -38,7 +38,7 @@
           "low_key": "DownArrow"
         }
       ],
-      "button_mappings": [
+      "buttons": [
         { "button": "South", "key": "Space" },
         { "button": "East", "key": "KeyX" },
         { "button": "West", "key": "KeyC" },

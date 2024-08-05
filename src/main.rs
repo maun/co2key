@@ -1,5 +1,5 @@
 use clap::{command, value_parser, Arg};
-use gilrs::{Event, Gamepad, Gilrs};
+use gilrs::{Axis, Event, Gilrs};
 use rdev::{simulate, EventType, Key};
 use serde::Deserialize;
 use serde_json::from_reader;
@@ -9,7 +9,7 @@ use std::io::BufReader;
 use std::path::PathBuf;
 
 #[derive(Deserialize)]
-struct AxisMapping {
+struct AxisCfg {
     axis: gilrs::Axis,
     high_key: Key,
     low_key: Key,
@@ -17,36 +17,37 @@ struct AxisMapping {
 }
 
 #[derive(Deserialize)]
-struct ButtonMapping {
+struct ButtonCfg {
     button: gilrs::Button,
     key: Key,
 }
 
 #[derive(Deserialize)]
-struct ControllerMapping {
-    axis_mappings: Vec<AxisMapping>,
-    button_mappings: Vec<ButtonMapping>,
+struct ControllerCfg {
+    axes: Vec<AxisCfg>,
+    buttons: Vec<ButtonCfg>,
 }
 
 #[derive(Deserialize)]
 struct Config {
-    controller_mappings: Vec<ControllerMapping>,
+    controllers: Vec<ControllerCfg>,
 }
 
-impl AxisMapping {
-    pub fn use_mapping(
+impl AxisCfg {
+    pub fn handle_event(
         &self,
+        axis: Axis,
+        axis_value: f32,
         key_state: &mut HashMap<Key, bool>,
-        gamepad: &Gamepad,
         verbose: bool,
     ) {
-        let v = gamepad
-            .axis_data(self.axis)
-            .map_or(0.0, |data| data.value());
+        if axis != self.axis {
+            return;
+        }
 
-        match v {
-            _ if v < -self.threshold => key_press_once(key_state, self.low_key, verbose),
-            _ if v > self.threshold => key_press_once(key_state, self.high_key, verbose),
+        match axis_value {
+            _ if axis_value < -self.threshold => key_press_once(key_state, self.low_key, verbose),
+            _ if axis_value > self.threshold => key_press_once(key_state, self.high_key, verbose),
             _ => {
                 key_release_once(key_state, self.low_key, verbose);
                 key_release_once(key_state, self.high_key, verbose);
@@ -55,52 +56,47 @@ impl AxisMapping {
     }
 }
 
-impl ButtonMapping {
-    pub fn use_mapping(
-        &self,
-        key_state: &mut HashMap<Key, bool>,
-        gamepad: &Gamepad,
-        verbose: bool,
-    ) {
-        let button_pressed = gamepad
-            .button_data(self.button)
-            .map_or(0.0, |data| data.value());
-
-        if button_pressed > 0.5 {
-            key_press_once(key_state, self.key, verbose)
-        } else {
-            key_release_once(key_state, self.key, verbose);
-        }
-    }
-}
-
-impl ControllerMapping {
-    pub fn use_mapping(
-        &self,
-        key_state: &mut HashMap<Key, bool>,
-        gamepad: &Gamepad,
-        verbose: bool,
-    ) {
-        for axis_mapping in &self.axis_mappings {
-            axis_mapping.use_mapping(key_state, gamepad, verbose);
-        }
-
-        for button_mapping in &self.button_mappings {
-            button_mapping.use_mapping(key_state, gamepad, verbose);
+impl ControllerCfg {
+    pub fn handle_event(&self, event: Event, key_state: &mut HashMap<Key, bool>, verbose: bool) {
+        match event.event {
+            gilrs::EventType::AxisChanged(axis, axis_value, _) => {
+                for axis_mapping in &self.axes {
+                    axis_mapping.handle_event(axis, axis_value, key_state, verbose);
+                }
+            }
+            gilrs::EventType::ButtonPressed(button, _) => {
+                if let Some(mapping) = self.buttons.iter().find(|m| m.button == button) {
+                    let _ = simulate(&EventType::KeyPress(mapping.key));
+                    if verbose {
+                        println!("\nSimulated key press {:?}", mapping.key);
+                    }
+                }
+            }
+            //gilrs::EventType::ButtonRepeated(button, _) => todo!(),
+            gilrs::EventType::ButtonReleased(button, _) => {
+                if let Some(mapping) = self.buttons.iter().find(|m| m.button == button) {
+                    let _ = simulate(&EventType::KeyRelease(mapping.key));
+                    if verbose {
+                        println!("\nSimulated key release {:?}", mapping.key);
+                    }
+                }
+            }
+            //gilrs::EventType::ButtonChanged(_, _, _) => (),
+            _ => (),
         }
     }
 }
 
 impl Config {
-    pub fn use_mapping(
+    pub fn handle_event(
         &self,
+        event: Event,
         key_state: &mut HashMap<Key, bool>,
-        gamepad: &Gamepad,
         gamepad_idx: usize,
         verbose: bool,
     ) {
-        if let Some(mapping) = self.controller_mappings.get(gamepad_idx) {
-            mapping.use_mapping(key_state, gamepad, verbose);
+        if let Some(mapping) = self.controllers.get(gamepad_idx) {
+            mapping.handle_event(event, key_state, verbose);
         };
     }
 }
@@ -165,14 +161,21 @@ fn main() {
     let mut gilrs = Gilrs::new().unwrap();
 
     loop {
-        while let Some(Event { id, event, time }) = gilrs.next_event_blocking(None) {
+        while let Some(event) = gilrs.next_event_blocking(None) {
             if verbose > 1 {
-                println!("{:?} New event from {}: {:?}\n", time, id, event);
+                println!(
+                    "{:?} New event from {}: {:?}\n",
+                    event.time, event.id, event.event
+                );
             }
 
-            for ((_, gamepad), gamepad_idx) in gilrs.gamepads().zip(0usize..) {
-                config.use_mapping(&mut key_state, &gamepad, gamepad_idx, verbose != 0);
-            }
+            // match gamepad_id with index of configured a
+            let gamepad_idx = match gilrs.gamepads().zip(0usize..).find(|g| g.0 .0 == event.id) {
+                Some((_, idx)) => idx,
+                _ => continue,
+            };
+
+            config.handle_event(event, &mut key_state, gamepad_idx, verbose != 0);
         }
     }
 }
