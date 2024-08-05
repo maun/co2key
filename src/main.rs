@@ -169,7 +169,7 @@ fn main() {
                 );
             }
 
-            // match gamepad_id with index of configured a
+            // match gamepad_id with index of configured controller
             let gamepad_idx = match gilrs.gamepads().zip(0usize..).find(|g| g.0 .0 == event.id) {
                 Some((_, idx)) => idx,
                 _ => continue,
