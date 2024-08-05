@@ -1,7 +1,6 @@
 {
   "controller_mappings": [
     {
-      "controller_id": 0,
       "axis_mappings": [
         {
           "threshold": 0.3,
@@ -25,7 +24,6 @@
       ]
     },
     {
-      "controller_id": 1,
       "axis_mappings": [
         {
           "threshold": 0.3,

@@ -24,7 +24,6 @@ struct ButtonMapping {
 
 #[derive(Deserialize)]
 struct ControllerMapping {
-    controller_id: u32,
     axis_mappings: Vec<AxisMapping>,
     button_mappings: Vec<ButtonMapping>,
 }
@@ -35,7 +34,7 @@ struct Config {
 }
 
 impl AxisMapping {
-    pub fn apply_mapping(
+    pub fn use_mapping(
         &self,
         key_state: &mut HashMap<Key, bool>,
         gamepad: &Gamepad,
@@ -57,7 +56,7 @@ impl AxisMapping {
 }
 
 impl ButtonMapping {
-    pub fn apply_mapping(
+    pub fn use_mapping(
         &self,
         key_state: &mut HashMap<Key, bool>,
         gamepad: &Gamepad,
@@ -76,37 +75,33 @@ impl ButtonMapping {
 }
 
 impl ControllerMapping {
-    pub fn apply_mapping(
+    pub fn use_mapping(
         &self,
         key_state: &mut HashMap<Key, bool>,
         gamepad: &Gamepad,
         verbose: bool,
     ) {
-        let id: usize = gamepad.id().into();
-        if self.controller_id != id as u32 {
-            return;
-        }
-
         for axis_mapping in &self.axis_mappings {
-            axis_mapping.apply_mapping(key_state, gamepad, verbose);
+            axis_mapping.use_mapping(key_state, gamepad, verbose);
         }
 
         for button_mapping in &self.button_mappings {
-            button_mapping.apply_mapping(key_state, gamepad, verbose);
+            button_mapping.use_mapping(key_state, gamepad, verbose);
         }
     }
 }
 
 impl Config {
-    pub fn apply_mapping(
+    pub fn use_mapping(
         &self,
         key_state: &mut HashMap<Key, bool>,
         gamepad: &Gamepad,
+        gamepad_idx: usize,
         verbose: bool,
     ) {
-        for controller_mapping in &self.controller_mappings {
-            controller_mapping.apply_mapping(key_state, gamepad, verbose);
-        }
+        if let Some(mapping) = self.controller_mappings.get(gamepad_idx) {
+            mapping.use_mapping(key_state, gamepad, verbose);
+        };
     }
 }
 
@@ -175,8 +170,8 @@ fn main() {
                 println!("{:?} New event from {}: {:?}\n", time, id, event);
             }
 
-            for (_id, gamepad) in gilrs.gamepads() {
-                config.apply_mapping(&mut key_state, &gamepad, verbose != 0);
+            for ((_, gamepad), gamepad_idx) in gilrs.gamepads().zip(0usize..) {
+                config.use_mapping(&mut key_state, &gamepad, gamepad_idx, verbose != 0);
             }
         }
     }
